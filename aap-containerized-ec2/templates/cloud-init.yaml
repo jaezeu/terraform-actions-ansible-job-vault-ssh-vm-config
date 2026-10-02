@@ -1,0 +1,24 @@
+#cloud-config
+# Prepares a RHEL 9 host for the AAP containerized installer. The installer
+# itself is run by scripts/install-aap.sh because the setup bundle must be
+# downloaded from the Red Hat Customer Portal with your own credentials.
+package_update: true
+
+packages:
+  - ansible-core
+  - git-core
+  - rsync
+  - tar
+  - python3-pip
+  - vim-enhanced
+
+runcmd:
+  # The installer must run as a non-root user with passwordless sudo.
+  - [bash, -c, "echo 'ec2-user ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/90-ec2-user"]
+  - [chmod, "0440", /etc/sudoers.d/90-ec2-user]
+  # Linger lets the rootless podman systemd units survive logout.
+  - [loginctl, enable-linger, ec2-user]
+  # Make sure the root filesystem uses the whole EBS volume.
+  - [bash, -c, "growpart /dev/nvme0n1 4 || true"]
+  - [bash, -c, "xfs_growfs / || true"]
+  - [touch, /var/lib/cloud/instance/aap-prereqs-done]
